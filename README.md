@@ -1,4 +1,9 @@
-# Getting started
+## Intro
+
+Scaerospike is a Scala wrapper around the Aerospike 3.x series asynchronous Java client. It uses the Scala 2.10 Futures
+API.
+
+## Getting started
 
 ```scala
     import com.tapad.aerospike._
