@@ -1,6 +1,6 @@
 # Getting started
 
-
+```scala
     import com.tapad.aerospike._
     import scala.concurrent.Future
     import scala.concurrent.duration._
@@ -12,7 +12,7 @@
     val devices = client.namespace[String, String]("devices")
 
     val write : Future[Unit] 	          = devices.put("deviceA", "foo")
-    val read  : Future[Option[String]]  = devices.get("deviceA")
+    val read  : Future[Option[String]]    = devices.get("deviceA")
 
     val result = write flatMap (_ => read)
 
@@ -22,4 +22,4 @@
     }
 
     Await.result(result, 10 seconds)
-   	
+```   	
