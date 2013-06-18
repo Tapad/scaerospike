@@ -50,6 +50,7 @@ object DataPump {
     val scanPolicy = new ScanPolicy()
     val writePolicy = new WritePolicy()
     writePolicy.maxRetries = 0
+    writePolicy.sleepBetweenRetries = 50
 
     val WriterCount = 64
     implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
