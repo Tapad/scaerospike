@@ -13,6 +13,7 @@ object DataPump {
     val sourceAddr = args(0)
     val destAddr = args(1)
     val namespace = args(2)
+    val set = if (args.size == 4) args(3) else ""
 
     val clientPolicy = new AsyncClientPolicy
     clientPolicy.maxThreads = 32
@@ -32,7 +33,7 @@ object DataPump {
 
     val batchSize = 100000
 
-    source.scanAll(scanPolicy, namespace, "", new ScanCallback {
+    source.scanAll(scanPolicy, namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
         val i = record.bins.entrySet().iterator()
