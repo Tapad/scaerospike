@@ -16,11 +16,17 @@ object DataPump {
     val namespace = args(2)
     val set = if (args.size == 4) args(3) else ""
 
-    val clientPolicy = new AsyncClientPolicy
-    clientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
 
-    val source = new AsyncClient(clientPolicy, sourceAddr, 3000)
-    val destination = new AsyncClient(clientPolicy, destAddr ,3000)
+    val source = {
+      val clientPolicy = new AsyncClientPolicy
+      new AsyncClient(clientPolicy, sourceAddr, 3000)
+    }
+
+
+    val destination = {
+      val clientPolicy = new ClientPolicy
+      new com.aerospike.client.AerospikeClient(clientPolicy, destAddr ,3000)
+    }
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
 
@@ -30,7 +36,7 @@ object DataPump {
     val scanPolicy = new ScanPolicy()
 
     val writePolicy = new WritePolicy()
-    writePolicy.timeout = 1000
+    writePolicy.timeout = 100000
     var startTime = System.currentTimeMillis()
 
     val batchSize = 100000
