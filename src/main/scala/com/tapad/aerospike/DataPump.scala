@@ -42,6 +42,7 @@ object DataPump {
 
     val scanPolicy = new ScanPolicy()
     scanPolicy.threadsPerNode = 1
+    scanPolicy.concurrentNodes = false
 
     val writePolicy = new WritePolicy()
 
@@ -64,8 +65,8 @@ object DataPump {
         }
       }
     }
-    source.scanAll(scanPolicy, new RecordSequenceListener {
-      def onRecord(key: Key, record: Record) {
+    source.scanAll(scanPolicy, namespace, "", new ScanCallback {
+      def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
         val i = record.bins.entrySet().iterator()
         while (i.hasNext) {
@@ -74,26 +75,7 @@ object DataPump {
         }
         destination.put(writePolicy, writeListener, key, bins.asScala: _*)
       }
-
-      def onFailure(exception: AerospikeException) {
-        exception.printStackTrace()
-      }
-
-      def onSuccess() {
-        println("Success")
-      }
-    }, namespace, "")
-    //    source.scanAll(scanPolicy, namespace, "", new ScanCallback {
-    //      def scanCallback(key: Key, record: Record) {
-    //        val bins = new util.ArrayList[Bin]()
-    //        val i = record.bins.entrySet().iterator()
-    //        while (i.hasNext) {
-    //          val e = i.next()
-    //          bins.add(new Bin(e.getKey, e.getValue))
-    //        }
-    //        destination.put(writePolicy, writeListener(), key, bins.asScala: _*)
-    //      }
-    //    })
+    })
     println("Done, a total of %d records moved...".format(recordsMoved.get()))
     Thread.sleep(Long.MaxValue)
   }
