@@ -28,6 +28,7 @@ object DataPump {
     val destination = {
       val clientPolicy = new AsyncClientPolicy
       clientPolicy.maxSocketIdle = 3600
+      clientPolicy.maxThreads = 10
       new AsyncClient(clientPolicy, destAddr ,3000)
     }
 
@@ -38,6 +39,7 @@ object DataPump {
     val errors = new ProgressWriter("Errors", 100)
 
     val scanPolicy = new ScanPolicy()
+    scanPolicy.includeBinData = false
     val writePolicy = new WritePolicy()
     writePolicy.maxRetries = 0
 
@@ -64,8 +66,7 @@ object DataPump {
       }
     }
 
-
-    source.scanNode(scanPolicy, "BB9A47A75E14B98", namespace, set, new ScanCallback {
+    source.scanAll(scanPolicy, namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
         val i = record.bins.entrySet().iterator()
