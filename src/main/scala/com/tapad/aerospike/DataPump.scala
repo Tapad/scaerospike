@@ -3,12 +3,9 @@ package com.tapad.aerospike
 import com.aerospike.client.async.{AsyncClientPolicy, MaxCommandAction, AsyncClient}
 import java.util.concurrent.atomic.AtomicInteger
 import com.aerospike.client.policy.{ClientPolicy, WritePolicy, ScanPolicy}
-import com.aerospike.client._
+import com.aerospike.client.{Bin, Record, Key, ScanCallback}
 import java.util
 import scala.collection.JavaConverters._
-import com.aerospike.client.listener.{RecordSequenceListener, WriteListener}
-import java.util.concurrent.Executors
-import com.aerospike.client.Log.{Level, Callback}
 
 object DataPump {
   def main(args: Array[String]) {
@@ -17,38 +14,20 @@ object DataPump {
     val destAddr = args(1)
     val namespace = args(2)
 
-    com.aerospike.client.Log.setLevel(Log.Level.DEBUG)
-    com.aerospike.client.Log.setCallback(new Callback {
-      def log(level: Level, message: String) {
-        println(level + ": " + message)
-      }
-    })
+    val clientPolicy = new AsyncClientPolicy
+    clientPolicy.maxThreads = 32
+    clientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
 
-    val executor = Executors.newCachedThreadPool()
-    val sourceClientPolicy = new AsyncClientPolicy
-    sourceClientPolicy.asyncTaskThreadPool = executor
-
-    val destClientPolicy = new AsyncClientPolicy
-    destClientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
-    destClientPolicy.asyncMaxCommands = 500
-    sourceClientPolicy.asyncTaskThreadPool = executor
-
-    val source = new AsyncClient(sourceClientPolicy, sourceAddr, 3000)
-    val destination = new AsyncClient(destClientPolicy, destAddr, 3000)
+    val source = new AsyncClient(clientPolicy, sourceAddr, 3000)
+    val destination = new AsyncClient(clientPolicy, destAddr ,3000)
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
 
     val recordsMoved = new AtomicInteger()
 
     val scanPolicy = new ScanPolicy()
-    scanPolicy.threadsPerNode = 1
-    scanPolicy.concurrentNodes = false
-
     val writePolicy = new WritePolicy()
-
     var startTime = System.currentTimeMillis()
-    val batchSize = 100000
-
     source.scanAll(scanPolicy, namespace, "", new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
@@ -59,16 +38,15 @@ object DataPump {
         }
         destination.put(writePolicy, key, bins.asScala: _*)
         val count = recordsMoved.incrementAndGet()
-        if (count % batchSize == 0) {
+        if (count % 100000 == 0) {
           val elapsed = System.currentTimeMillis() - startTime
           startTime = System.currentTimeMillis()
-          println("Processed %(,d bins / records, %d ms, %.2f records / sec".format(
-            count, elapsed, batchSize.toFloat / elapsed * 1000)
+          println("Processed %(,d records, %d ms, %.2f records / sec".format(
+            count, elapsed, count.toFloat / elapsed)
           )
         }
       }
     })
     println("Done, a total of %d records moved...".format(recordsMoved.get()))
-    Thread.sleep(Long.MaxValue)
   }
 }
