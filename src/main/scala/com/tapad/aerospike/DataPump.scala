@@ -8,6 +8,7 @@ import java.util
 import scala.collection.JavaConverters._
 import com.aerospike.client.listener.WriteListener
 import java.util.concurrent.Executors
+import com.aerospike.client.Log.{Level, Callback}
 
 object DataPump {
   def main(args: Array[String]) {
@@ -17,6 +18,11 @@ object DataPump {
     val namespace = args(2)
 
     com.aerospike.client.Log.setLevel(Log.Level.DEBUG)
+    com.aerospike.client.Log.setCallback(new Callback {
+      def log(level: Level, message: String) {
+        println(level + ": " + message)
+      }
+    })
 
     val sourceClientPolicy = new AsyncClientPolicy
 
