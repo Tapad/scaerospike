@@ -7,6 +7,8 @@ import com.aerospike.client.{Bin, Record, Key, ScanCallback}
 import java.util
 import scala.collection.JavaConverters._
 import com.aerospike.client.listener.WriteListener
+import java.util.concurrent.{LinkedBlockingDeque, Executors}
+import scala.concurrent.Future
 
 object DataPump {
   def main(args: Array[String]) {
@@ -24,8 +26,8 @@ object DataPump {
 
 
     val destination = {
-      val clientPolicy = new ClientPolicy
-      new com.aerospike.client.AerospikeClient(clientPolicy, destAddr ,3000)
+      val clientPolicy = new AsyncClientPolicy
+      new AsyncClient(clientPolicy, destAddr ,3000)
     }
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
@@ -41,6 +43,33 @@ object DataPump {
 
     val batchSize = 100000
 
+    val WriterCount = 64
+    implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
+    val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])]()
+
+    for { i <- 0 to WriterCount} {
+      Future {
+        while (true) {
+          val (key, bins) = workQueue.poll()
+          try {
+            destination.put(writePolicy, key, bins.asScala: _*)
+          } catch {
+            case e : Exception => errors.incrementAndGet()
+          }
+          val count = recordsMoved.incrementAndGet()
+          if (count % 100000 == 0) {
+            val elapsed = System.currentTimeMillis() - startTime
+            startTime = System.currentTimeMillis()
+            println("Processed %(,d records, %(,d errors, %d ms, %.2f records / sec".format(
+              count, errors.get(), elapsed, batchSize.toFloat / elapsed * 1000)
+            )
+          }
+
+        }
+      }
+    }
+
+
     source.scanAll(scanPolicy, namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
@@ -49,19 +78,7 @@ object DataPump {
           val e = i.next()
           bins.add(new Bin(e.getKey, e.getValue))
         }
-        try {
-//          destination.put(writePolicy, key, bins.asScala: _*)
-        } catch {
-          case e : Exception => errors.incrementAndGet()
-        }
-        val count = recordsMoved.incrementAndGet()
-        if (count % 100000 == 0) {
-          val elapsed = System.currentTimeMillis() - startTime
-          startTime = System.currentTimeMillis()
-          println("Processed %(,d records, %(,d errors, %d ms, %.2f records / sec".format(
-            count, errors.get(), elapsed, batchSize.toFloat / elapsed * 1000)
-          )
-        }
+        workQueue.put(key -> bins)
       }
     })
     println("Done, a total of %d records moved...".format(recordsMoved.get()))
