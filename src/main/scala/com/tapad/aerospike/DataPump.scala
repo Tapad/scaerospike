@@ -3,12 +3,13 @@ package com.tapad.aerospike
 import com.aerospike.client.async.{AsyncClientPolicy, AsyncClient}
 import java.util.concurrent.atomic.AtomicInteger
 import com.aerospike.client.policy.{ClientPolicy, WritePolicy, ScanPolicy}
-import com.aerospike.client.{Bin, Record, Key, ScanCallback}
+import com.aerospike.client._
 import scala.concurrent.duration._
 import java.util
 import scala.collection.JavaConverters._
 import java.util.concurrent.{TimeUnit, LinkedBlockingDeque, Executors}
 import scala.concurrent.{Await, Future}
+import com.aerospike.client.Log.{Level, Callback}
 
 object DataPump {
   def main(args: Array[String]) {
@@ -23,6 +24,13 @@ object DataPump {
       val clientPolicy = new AsyncClientPolicy
       new AsyncClient(clientPolicy, sourceAddr, 3000)
     }
+
+    Log.setLevel(Log.Level.DEBUG)
+    Log.setCallback(new Callback {
+      def log(level: Level, message: String) {
+        println(level + ": " + message)
+      }
+    })
 
 
     val destination = {
