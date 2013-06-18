@@ -1,6 +1,6 @@
 package com.tapad.aerospike
 
-import com.aerospike.client.async.{AsyncClientPolicy, AsyncClient}
+import com.aerospike.client.async.{MaxCommandAction, AsyncClientPolicy, AsyncClient}
 import java.util.concurrent.atomic.AtomicInteger
 import com.aerospike.client.policy.{ClientPolicy, WritePolicy, ScanPolicy}
 import com.aerospike.client._
@@ -10,6 +10,7 @@ import scala.collection.JavaConverters._
 import java.util.concurrent.{TimeUnit, LinkedBlockingDeque, Executors}
 import scala.concurrent.{Await, Future}
 import com.aerospike.client.Log.{Level, Callback}
+import com.aerospike.client.listener.WriteListener
 
 object DataPump {
   def main(args: Array[String]) {
@@ -34,11 +35,12 @@ object DataPump {
 
 
     val destination = {
-      val clientPolicy = new ClientPolicy
+      val clientPolicy = new AsyncClientPolicy
+      clientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
       clientPolicy.maxSocketIdle = 3600
       clientPolicy.timeout = 1000
       clientPolicy.maxThreads = 10
-      new com.aerospike.client.AerospikeClient(clientPolicy, destAddr ,3000)
+      new AsyncClient(clientPolicy, destAddr, 3000)
     }
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
@@ -52,29 +54,15 @@ object DataPump {
     writePolicy.maxRetries = 0
     writePolicy.sleepBetweenRetries = 50
 
-    val WriterCount = 64
-    implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
-    val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])](2000)
+    val writeListener = new WriteListener {
+      def onFailure(exception: AerospikeException) {
+        errors.progress()
+      }
 
-    var finished = false
-
-    val ops = for { i <- 0 to WriterCount} yield {
-      Future {
-        while (!finished) {
-          workQueue.poll(5, TimeUnit.SECONDS) match {
-            case (key, bins) =>
-              try {
-                destination.put(writePolicy, key, bins.asScala: _*)
-                written.progress()
-              } catch {
-                case e : Exception => errors.progress()
-              }
-            case null => // No work, check if done
-          }
-        }
+      def onSuccess(key: Key) {
+        written.progress()
       }
     }
-
 
     source.scanAll(scanPolicy, namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
@@ -84,14 +72,11 @@ object DataPump {
           val e = i.next()
           bins.add(new Bin(e.getKey, e.getValue))
         }
-        val newKey = new Key(namespace, key.digest)
-        workQueue.put(newKey -> bins)
         reads.progress()
+        destination.put(writePolicy, writeListener, key, bins.asScala : _*)
       }
     })
     println("Finished. Waiting for threads...")
-    finished = true
-    Await.result(Future.sequence(ops), 5000 hours)
     println("Done, a total of %d records moved...".format(written.get()))
   }
 
