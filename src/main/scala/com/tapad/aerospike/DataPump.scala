@@ -41,7 +41,7 @@ object DataPump {
     val recordsMoved = new AtomicInteger()
 
     val scanPolicy = new ScanPolicy()
-    scanPolicy.threadsPerNode = 4
+    scanPolicy.threadsPerNode = 1
 
     val writePolicy = new WritePolicy()
 
@@ -75,9 +75,13 @@ object DataPump {
         destination.put(writePolicy, writeListener, key, bins.asScala: _*)
       }
 
-      def onFailure(exception: AerospikeException) {}
+      def onFailure(exception: AerospikeException) {
+        exception.printStackTrace()
+      }
 
-      def onSuccess() {}
+      def onSuccess() {
+        println("Success")
+      }
     }, namespace, "")
     //    source.scanAll(scanPolicy, namespace, "", new ScanCallback {
     //      def scanCallback(key: Key, record: Record) {
