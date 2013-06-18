@@ -8,6 +8,8 @@ import java.util
 import scala.collection.JavaConverters._
 import com.aerospike.client.listener.WriteListener
 import java.util.concurrent.Executors
+import com.aerospike.client.AerospikeException.CommandRejected
+import scala.annotation.tailrec
 
 object DataPump {
   def main(args: Array[String]) {
@@ -19,12 +21,12 @@ object DataPump {
     val sourceClientPolicy = new AsyncClientPolicy
 
     val destClientPolicy = new AsyncClientPolicy
-    destClientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
+    destClientPolicy.asyncMaxCommandAction = MaxCommandAction.REJECT
     destClientPolicy.asyncMaxCommands = 1000
     destClientPolicy.asyncTaskThreadPool = Executors.newCachedThreadPool()
 
     val source = new AsyncClient(sourceClientPolicy, sourceAddr, 3000)
-    val destination = new AsyncClient(destClientPolicy, destAddr ,3000)
+    val destination = new AsyncClient(destClientPolicy, destAddr, 3000)
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
 
@@ -62,7 +64,19 @@ object DataPump {
           val e = i.next()
           bins.add(new Bin(e.getKey, e.getValue))
         }
-        destination.put(writePolicy, writeListener, key, bins.asScala: _*)
+
+        var sent = false
+        while (!sent) {
+          try {
+            destination.put(writePolicy, writeListener, key, bins.asScala: _*)
+            sent = true
+          } catch {
+            case e: CommandRejected =>
+              println("Applying back-pressure...")
+              Thread.sleep(10)
+          }
+        }
+
       }
     })
     println("Done, a total of %d records moved...".format(recordsMoved.get()))
