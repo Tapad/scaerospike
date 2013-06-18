@@ -6,6 +6,7 @@ import com.aerospike.client.policy.{ClientPolicy, WritePolicy, ScanPolicy}
 import com.aerospike.client.{Bin, Record, Key, ScanCallback}
 import java.util
 import scala.collection.JavaConverters._
+import com.aerospike.client.listener.WriteListener
 
 object DataPump {
   def main(args: Array[String]) {
@@ -16,7 +17,6 @@ object DataPump {
     val set = if (args.size == 4) args(3) else ""
 
     val clientPolicy = new AsyncClientPolicy
-    clientPolicy.maxThreads = 32
     clientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
 
     val source = new AsyncClient(clientPolicy, sourceAddr, 3000)
@@ -41,7 +41,11 @@ object DataPump {
           val e = i.next()
           bins.add(new Bin(e.getKey, e.getValue))
         }
-        destination.put(writePolicy, key, bins.asScala: _*)
+        try {
+          destination.put(writePolicy, key, bins.asScala: _*)
+        } catch {
+          case e : Exception => e.printStackTrace()
+        }
         val count = recordsMoved.incrementAndGet()
         if (count % 100000 == 0) {
           val elapsed = System.currentTimeMillis() - startTime
