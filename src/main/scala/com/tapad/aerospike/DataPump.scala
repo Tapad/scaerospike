@@ -39,7 +39,6 @@ object DataPump {
     val errors = new ProgressWriter("Errors", 100)
 
     val scanPolicy = new ScanPolicy()
-    scanPolicy.includeBinData = false
     val writePolicy = new WritePolicy()
     writePolicy.maxRetries = 0
 
@@ -65,6 +64,7 @@ object DataPump {
         }
       }
     }
+
 
     source.scanAll(scanPolicy, namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
