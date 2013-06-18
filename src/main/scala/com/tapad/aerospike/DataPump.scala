@@ -6,7 +6,7 @@ import com.aerospike.client.policy.{ClientPolicy, WritePolicy, ScanPolicy}
 import com.aerospike.client._
 import java.util
 import scala.collection.JavaConverters._
-import com.aerospike.client.listener.WriteListener
+import com.aerospike.client.listener.{RecordSequenceListener, WriteListener}
 
 object DataPump {
   def main(args: Array[String]) {
@@ -20,7 +20,7 @@ object DataPump {
     clientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
 
     val source = new AsyncClient(clientPolicy, sourceAddr, 3000)
-    val destination = new AsyncClient(clientPolicy, destAddr ,3000)
+    val destination = new AsyncClient(clientPolicy, destAddr, 3000)
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
 
@@ -50,8 +50,8 @@ object DataPump {
         }
       }
     }
-    source.scanAll(scanPolicy, namespace, "", new ScanCallback {
-      def scanCallback(key: Key, record: Record) {
+    source.scanAll(scanPolicy, new RecordSequenceListener {
+      def onRecord(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
         val i = record.bins.entrySet().iterator()
         while (i.hasNext) {
@@ -60,7 +60,15 @@ object DataPump {
         }
         destination.put(writePolicy, writeListener, key, bins.asScala: _*)
       }
-    })
+
+      def onFailure(exception: AerospikeException) {
+        exception.printStackTrace()
+      }
+
+      def onSuccess() {
+        println("Scan completed...")
+      }
+    }, namespace, "")
     println("Done, a total of %d records moved...".format(recordsMoved.get()))
   }
 }
