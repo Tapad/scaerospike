@@ -25,10 +25,12 @@ object DataPump {
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
 
     val recordsMoved = new AtomicInteger()
+    val errors = new AtomicInteger()
 
     val scanPolicy = new ScanPolicy()
 
     val writePolicy = new WritePolicy()
+    writePolicy.timeout = 1000
     var startTime = System.currentTimeMillis()
 
     val batchSize = 100000
@@ -44,14 +46,14 @@ object DataPump {
         try {
           destination.put(writePolicy, key, bins.asScala: _*)
         } catch {
-          case e : Exception => e.printStackTrace()
+          case e : Exception => errors.incrementAndGet()
         }
         val count = recordsMoved.incrementAndGet()
         if (count % 100000 == 0) {
           val elapsed = System.currentTimeMillis() - startTime
           startTime = System.currentTimeMillis()
-          println("Processed %(,d records, %d ms, %.2f records / sec".format(
-            count, elapsed, batchSize.toFloat / elapsed * 1000)
+          println("Processed %(,d records, %(,d errors, %d ms, %.2f records / sec".format(
+            count, errors.get(), elapsed, batchSize.toFloat / elapsed * 1000)
           )
         }
       }
