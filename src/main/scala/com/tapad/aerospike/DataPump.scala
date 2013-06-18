@@ -41,7 +41,7 @@ object DataPump {
     val writePolicy = new WritePolicy()
     writePolicy.maxRetries = 0
 
-    val WriterCount = 32
+    val WriterCount = 16
     implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
     val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])](2000)
 
