@@ -65,7 +65,7 @@ object DataPump {
     }
 
 
-    source.scanNode(scanPolicy, sourceAddr, namespace, set, new ScanCallback {
+    source.scanNode(scanPolicy, "BB9A47A75E14B98", namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
         val i = record.bins.entrySet().iterator()
