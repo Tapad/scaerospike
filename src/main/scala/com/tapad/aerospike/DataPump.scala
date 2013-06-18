@@ -84,7 +84,7 @@ object DataPump {
           val e = i.next()
           bins.add(new Bin(e.getKey, e.getValue))
         }
-        val newKey = new Key(namespace, key.setName, key.userKey)
+        val newKey = new Key(namespace, key.digest)
         workQueue.put(newKey -> bins)
         reads.progress()
       }
