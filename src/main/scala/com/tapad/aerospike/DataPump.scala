@@ -56,8 +56,7 @@ object DataPump {
               } catch {
                 case e : Exception => errors.progress()
               }
-            case null =>
-              println("Got a null")
+            case null => // No work, check if done
           }
         }
       }
