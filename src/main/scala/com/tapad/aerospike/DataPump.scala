@@ -69,6 +69,7 @@ object DataPump {
         println("Scan completed...")
       }
     }, namespace, "")
+    Thread.sleep(Long.MaxValue)
     println("Done, a total of %d records moved...".format(recordsMoved.get()))
   }
 }
