@@ -30,7 +30,7 @@ object DataPump {
 
     val destClientPolicy = new AsyncClientPolicy
     destClientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
-    destClientPolicy.asyncMaxCommands = 10000
+    destClientPolicy.asyncMaxCommands = 500
     sourceClientPolicy.asyncTaskThreadPool = executor
 
     val source = new AsyncClient(sourceClientPolicy, sourceAddr, 3000)
