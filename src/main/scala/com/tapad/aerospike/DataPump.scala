@@ -2,7 +2,7 @@ package com.tapad.aerospike
 
 import com.aerospike.client.async.{AsyncClientPolicy, AsyncClient}
 import java.util.concurrent.atomic.AtomicInteger
-import com.aerospike.client.policy.{WritePolicy, ScanPolicy}
+import com.aerospike.client.policy.{ClientPolicy, WritePolicy, ScanPolicy}
 import com.aerospike.client.{Bin, Record, Key, ScanCallback}
 import scala.concurrent.duration._
 import java.util
@@ -26,10 +26,10 @@ object DataPump {
 
 
     val destination = {
-      val clientPolicy = new AsyncClientPolicy
+      val clientPolicy = new ClientPolicy
       clientPolicy.maxSocketIdle = 3600
       clientPolicy.maxThreads = 10
-      new AsyncClient(clientPolicy, destAddr ,3000)
+      new com.aerospike.client.AerospikeClient(clientPolicy, destAddr ,3000)
     }
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
