@@ -45,7 +45,7 @@ object DataPump {
 
     val WriterCount = 64
     implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
-    val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])]()
+    val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])](20000)
 
     for { i <- 0 to WriterCount} {
       Future {
@@ -60,7 +60,7 @@ object DataPump {
           if (count % 100000 == 0) {
             val elapsed = System.currentTimeMillis() - startTime
             startTime = System.currentTimeMillis()
-            println("Processed %(,d records, %(,d errors, %d ms, %.2f records / sec".format(
+            println("%(,d records written, %(,d errors, %d ms, %.2f records / sec".format(
               count, errors.get(), elapsed, batchSize.toFloat / elapsed * 1000)
             )
           }
