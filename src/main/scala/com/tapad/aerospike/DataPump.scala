@@ -26,12 +26,12 @@ object DataPump {
     val recordsMoved = new AtomicInteger()
 
     val scanPolicy = new ScanPolicy()
-    scanPolicy.threadsPerNode = 4
 
     val writePolicy = new WritePolicy()
-
     var startTime = System.currentTimeMillis()
+
     val batchSize = 100000
+
     source.scanAll(scanPolicy, namespace, "", new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
@@ -42,7 +42,7 @@ object DataPump {
         }
         destination.put(writePolicy, key, bins.asScala: _*)
         val count = recordsMoved.incrementAndGet()
-        if (count % batchSize == 0) {
+        if (count % 100000 == 0) {
           val elapsed = System.currentTimeMillis() - startTime
           startTime = System.currentTimeMillis()
           println("Processed %(,d records, %d ms, %.2f records / sec".format(
