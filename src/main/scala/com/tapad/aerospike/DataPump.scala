@@ -34,14 +34,14 @@ object DataPump {
 
     val written = new ProgressWriter("Writes")
     val reads = new ProgressWriter("Reads")
-    val errors = new ProgressWriter("Errors")
+    val errors = new ProgressWriter("Errors", 100)
 
     val scanPolicy = new ScanPolicy()
     val writePolicy = new WritePolicy()
 
-    val WriterCount = 64
+    val WriterCount = 32
     implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
-    val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])](20000)
+    val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])](2000)
 
     var finished = false
 
@@ -81,10 +81,9 @@ object DataPump {
     println("Done, a total of %d records moved...".format(written.get()))
   }
 
-  class ProgressWriter(operation: String) {
+  class ProgressWriter(operation: String, batchSize : Int = 10000) {
     var startTime = System.currentTimeMillis()
     val ops = new AtomicInteger()
-    val batchSize = 10000
 
     def get() = ops.get()
 
