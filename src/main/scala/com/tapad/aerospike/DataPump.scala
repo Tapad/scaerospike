@@ -36,6 +36,7 @@ object DataPump {
     val destination = {
       val clientPolicy = new ClientPolicy
       clientPolicy.maxSocketIdle = 3600
+      clientPolicy.timeout = 1000
       clientPolicy.maxThreads = 10
       new com.aerospike.client.AerospikeClient(clientPolicy, destAddr ,3000)
     }
