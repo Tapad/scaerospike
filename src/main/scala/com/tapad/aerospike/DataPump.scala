@@ -28,7 +28,6 @@ object DataPump {
     val destination = {
       val clientPolicy = new AsyncClientPolicy
       clientPolicy.maxSocketIdle = 3600
-      clientPolicy.maxThreads = 10
       new AsyncClient(clientPolicy, destAddr ,3000)
     }
 
@@ -42,7 +41,7 @@ object DataPump {
     val writePolicy = new WritePolicy()
     writePolicy.maxRetries = 0
 
-    val WriterCount = 16
+    val WriterCount = 64
     implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
     val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])](2000)
 
@@ -66,7 +65,7 @@ object DataPump {
     }
 
 
-    source.scanAll(scanPolicy, namespace, set, new ScanCallback {
+    source.scanNode(scanPolicy, sourceAddr, namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
         val i = record.bins.entrySet().iterator()
