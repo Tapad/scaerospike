@@ -27,6 +27,7 @@ object DataPump {
 
     val destination = {
       val clientPolicy = new AsyncClientPolicy
+      clientPolicy.maxSocketIdle = 3600
       new AsyncClient(clientPolicy, destAddr ,3000)
     }
 
@@ -38,6 +39,7 @@ object DataPump {
 
     val scanPolicy = new ScanPolicy()
     val writePolicy = new WritePolicy()
+    writePolicy.maxRetries = 0
 
     val WriterCount = 32
     implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
