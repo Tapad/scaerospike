@@ -1,14 +1,14 @@
 package com.tapad.aerospike
 
-import com.aerospike.client.async.{AsyncClientPolicy, MaxCommandAction, AsyncClient}
+import com.aerospike.client.async.{AsyncClientPolicy, AsyncClient}
 import java.util.concurrent.atomic.AtomicInteger
-import com.aerospike.client.policy.{ClientPolicy, WritePolicy, ScanPolicy}
+import com.aerospike.client.policy.{WritePolicy, ScanPolicy}
 import com.aerospike.client.{Bin, Record, Key, ScanCallback}
+import scala.concurrent.duration._
 import java.util
 import scala.collection.JavaConverters._
-import com.aerospike.client.listener.WriteListener
-import java.util.concurrent.{LinkedBlockingDeque, Executors}
-import scala.concurrent.Future
+import java.util.concurrent.{TimeUnit, LinkedBlockingDeque, Executors}
+import scala.concurrent.{Await, Future}
 
 object DataPump {
   def main(args: Array[String]) {
@@ -43,15 +43,21 @@ object DataPump {
     implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
     val workQueue = new LinkedBlockingDeque[(Key, util.ArrayList[Bin])](20000)
 
-    for { i <- 0 to WriterCount} {
+    var finished = false
+
+    val ops = for { i <- 0 to WriterCount} yield {
       Future {
-        while (true) {
-          val (key, bins) = workQueue.poll()
-          try {
-            destination.put(writePolicy, key, bins.asScala: _*)
-            written.progress()
-          } catch {
-            case e : Exception => errors.progress()
+        while (!finished) {
+          workQueue.poll(5, TimeUnit.SECONDS) match {
+            case (key, bins) =>
+              try {
+                destination.put(writePolicy, key, bins.asScala: _*)
+                written.progress()
+              } catch {
+                case e : Exception => errors.progress()
+              }
+            case null =>
+              println("Got a null")
           }
         }
       }
@@ -70,6 +76,9 @@ object DataPump {
         reads.progress()
       }
     })
+    println("Finished. Waiting for threads...")
+    finished = true
+    Await.result(Future.sequence(ops), 5000 hours)
     println("Done, a total of %d records moved...".format(written.get()))
   }
 
