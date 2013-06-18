@@ -17,7 +17,7 @@ object Scaerospike extends Build {
         jarName in assembly := "datapump.jar"
       ) ++ Seq(libraryDependencies ++=
         Seq(
-          "com.aerospike" % "aerospike-client" % "3.0.0",
+          "com.aerospike" % "aerospike-client" % "3.0.1",
           "org.scalatest" %% "scalatest" % "1.9.1" % "test"
         )
       )
