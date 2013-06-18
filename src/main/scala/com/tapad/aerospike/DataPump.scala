@@ -32,16 +32,12 @@ object DataPump {
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
 
-    val recordsMoved = new AtomicInteger()
-    val errors = new AtomicInteger()
+    val written = new ProgressWriter("Writes")
+    val reads = new ProgressWriter("Reads")
+    val errors = new ProgressWriter("Errors")
 
     val scanPolicy = new ScanPolicy()
-
     val writePolicy = new WritePolicy()
-    writePolicy.timeout = 100000
-    var startTime = System.currentTimeMillis()
-
-    val batchSize = 100000
 
     val WriterCount = 64
     implicit val executor = scala.concurrent.ExecutionContext.fromExecutor(Executors.newFixedThreadPool(WriterCount))
@@ -53,18 +49,10 @@ object DataPump {
           val (key, bins) = workQueue.poll()
           try {
             destination.put(writePolicy, key, bins.asScala: _*)
+            written.progress()
           } catch {
-            case e : Exception => errors.incrementAndGet()
+            case e : Exception => errors.progress()
           }
-          val count = recordsMoved.incrementAndGet()
-          if (count % 100000 == 0) {
-            val elapsed = System.currentTimeMillis() - startTime
-            startTime = System.currentTimeMillis()
-            println("%(,d records written, %(,d errors, %d ms, %.2f records / sec".format(
-              count, errors.get(), elapsed, batchSize.toFloat / elapsed * 1000)
-            )
-          }
-
         }
       }
     }
@@ -79,8 +67,30 @@ object DataPump {
           bins.add(new Bin(e.getKey, e.getValue))
         }
         workQueue.put(key -> bins)
+        reads.progress()
       }
     })
-    println("Done, a total of %d records moved...".format(recordsMoved.get()))
+    println("Done, a total of %d records moved...".format(written.get()))
+  }
+
+  class ProgressWriter(operation: String) {
+    var startTime = System.currentTimeMillis()
+    val ops = new AtomicInteger()
+    val batchSize = 10000
+
+    def get() = ops.get()
+
+    def progress() {
+      val count = ops.incrementAndGet()
+      if (count % batchSize == 0) {
+        val elapsed = System.currentTimeMillis() - startTime
+        startTime = System.currentTimeMillis()
+        println("%s: %(,d records, %d ms, %.2f records / sec".format(
+          operation,
+          count, elapsed, batchSize.toFloat / elapsed * 1000)
+        )
+      }
+
+    }
   }
 }
