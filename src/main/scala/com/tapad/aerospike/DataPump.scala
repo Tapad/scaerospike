@@ -6,7 +6,7 @@ import com.aerospike.client.policy.{ClientPolicy, WritePolicy, ScanPolicy}
 import com.aerospike.client._
 import java.util
 import scala.collection.JavaConverters._
-import com.aerospike.client.listener.WriteListener
+import com.aerospike.client.listener.{RecordSequenceListener, WriteListener}
 import java.util.concurrent.Executors
 import com.aerospike.client.Log.{Level, Callback}
 
@@ -24,14 +24,17 @@ object DataPump {
       }
     })
 
+    val executor = Executors.newCachedThreadPool()
     val sourceClientPolicy = new AsyncClientPolicy
+    sourceClientPolicy.asyncTaskThreadPool = executor
 
     val destClientPolicy = new AsyncClientPolicy
     destClientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
     destClientPolicy.asyncMaxCommands = 10000
+    sourceClientPolicy.asyncTaskThreadPool = executor
 
     val source = new AsyncClient(sourceClientPolicy, sourceAddr, 3000)
-    val destination = new AsyncClient(destClientPolicy, destAddr ,3000)
+    val destination = new AsyncClient(destClientPolicy, destAddr, 3000)
 
     println("Copying all data from namespace %s from cluster at %s to %s...".format(namespace, sourceAddr, destAddr))
 
@@ -45,7 +48,7 @@ object DataPump {
     var startTime = System.currentTimeMillis()
     val batchSize = 100000
 
-    def writeListener() = new WriteListener {
+    val writeListener = new WriteListener {
       def onFailure(exception: AerospikeException) {
         println("Error " + exception.toString)
       }
@@ -61,18 +64,33 @@ object DataPump {
         }
       }
     }
-    source.scanAll(scanPolicy, namespace, "", new ScanCallback {
-      def scanCallback(key: Key, record: Record) {
+    source.scanAll(scanPolicy, new RecordSequenceListener {
+      def onRecord(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
         val i = record.bins.entrySet().iterator()
         while (i.hasNext) {
           val e = i.next()
           bins.add(new Bin(e.getKey, e.getValue))
         }
-        destination.put(writePolicy, writeListener(), key, bins.asScala: _*)
+        destination.put(writePolicy, writeListener, key, bins.asScala: _*)
       }
-    })
+
+      def onFailure(exception: AerospikeException) {}
+
+      def onSuccess() {}
+    }, namespace, "")
+    //    source.scanAll(scanPolicy, namespace, "", new ScanCallback {
+    //      def scanCallback(key: Key, record: Record) {
+    //        val bins = new util.ArrayList[Bin]()
+    //        val i = record.bins.entrySet().iterator()
+    //        while (i.hasNext) {
+    //          val e = i.next()
+    //          bins.add(new Bin(e.getKey, e.getValue))
+    //        }
+    //        destination.put(writePolicy, writeListener(), key, bins.asScala: _*)
+    //      }
+    //    })
     println("Done, a total of %d records moved...".format(recordsMoved.get()))
-    Thread.sleep(100000000)
+    Thread.sleep(Long.MaxValue)
   }
 }
