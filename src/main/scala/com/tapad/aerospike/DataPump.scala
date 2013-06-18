@@ -91,7 +91,7 @@ object DataPump {
       if (count % batchSize == 0) {
         val elapsed = System.currentTimeMillis() - startTime
         startTime = System.currentTimeMillis()
-        println("%s: %(,d records, %d ms, %.2f records / sec".format(
+        println(new java.util.Date() + " %s: %(,d records, %d ms, %.2f records / sec".format(
           operation,
           count, elapsed, batchSize.toFloat / elapsed * 1000)
         )
