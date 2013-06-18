@@ -50,7 +50,7 @@ object DataPump {
           bins.add(new Bin(e.getKey, e.getValue))
         }
         try {
-          destination.put(writePolicy, key, bins.asScala: _*)
+//          destination.put(writePolicy, key, bins.asScala: _*)
         } catch {
           case e : Exception => errors.incrementAndGet()
         }
