@@ -17,6 +17,7 @@ object DataPump {
     val clientPolicy = new AsyncClientPolicy
     clientPolicy.maxThreads = 256
     clientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
+    clientPolicy.asyncSelectorThreads
 
     val source = new AsyncClient(clientPolicy, sourceAddr, 3000)
     val destination = new AsyncClient(clientPolicy, destAddr ,3000)
@@ -26,7 +27,7 @@ object DataPump {
     val recordsMoved = new AtomicInteger()
 
     val scanPolicy = new ScanPolicy()
-    scanPolicy.threadsPerNode = 4
+    scanPolicy.threadsPerNode = 8
 
     val writePolicy = new WritePolicy()
 
