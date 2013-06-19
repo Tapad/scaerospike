@@ -24,7 +24,7 @@ object DataPump {
     val source = {
       val clientPolicy = new AsyncClientPolicy
       clientPolicy.maxSocketIdle = 3600
-      clientPolicy.asyncMaxCommands = 200
+      clientPolicy.asyncMaxCommands = 100
       new AsyncClient(clientPolicy, sourceAddr, 3000)
     }
 
@@ -39,7 +39,7 @@ object DataPump {
     val destination = {
       val clientPolicy = new AsyncClientPolicy
       clientPolicy.asyncMaxCommandAction = MaxCommandAction.BLOCK
-      clientPolicy.asyncMaxCommands = 200
+      clientPolicy.asyncMaxCommands = 100
       clientPolicy.maxSocketIdle = 3600
       clientPolicy.timeout = 1000
       clientPolicy.maxThreads = 10
