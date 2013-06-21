@@ -70,7 +70,6 @@ object DataPump {
     source.scanAll(scanPolicy, namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
-        if (key.setName != "") println("Set : " + key.setName)
         val i = record.bins.entrySet().iterator()
         while (i.hasNext) {
           val e = i.next()
