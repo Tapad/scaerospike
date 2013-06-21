@@ -18,7 +18,7 @@ object DataPump {
     val sourceAddr = args(0)
     val destAddr = args(1)
     val namespace = args(2)
-    val set = if (args.size == 4) args(3) else ""
+    val set = if (args.size == 4) args(3) else null
 
 
     val source = {
@@ -70,6 +70,7 @@ object DataPump {
     source.scanAll(scanPolicy, namespace, set, new ScanCallback {
       def scanCallback(key: Key, record: Record) {
         val bins = new util.ArrayList[Bin]()
+        if (key.setName != "") println("Set : " + key.setName)
         val i = record.bins.entrySet().iterator()
         while (i.hasNext) {
           val e = i.next()
