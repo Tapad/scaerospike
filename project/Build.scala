@@ -13,6 +13,7 @@ object Scaerospike extends Build {
     settings = Config.buildSettings ++
       sbtassembly.Plugin.assemblySettings ++
       Seq(
+	organization := "com.tapad.scaerospike",
         mainClass in assembly := Some("com.tapad.aerospike.DataPump"),
         jarName in assembly := "datapump.jar"
       ) ++ Seq(libraryDependencies ++=
