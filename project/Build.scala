@@ -11,11 +11,8 @@ object Scaerospike extends Build {
 
   lazy val scaerospike: Project = Project("scaerospike", file("."),
     settings = Config.buildSettings ++
-      sbtassembly.Plugin.assemblySettings ++
       Seq(
-	organization := "com.tapad.scaerospike",
-        mainClass in assembly := Some("com.tapad.aerospike.DataPump"),
-        jarName in assembly := "datapump.jar"
+      	organization := "com.tapad.scaerospike"
       ) ++ Seq(libraryDependencies ++=
         Seq(
           "com.aerospike" % "aerospike-client" % "3.0.1",
