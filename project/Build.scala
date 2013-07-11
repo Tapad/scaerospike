@@ -11,7 +11,9 @@ object Scaerospike extends Build {
 
   lazy val scaerospike: Project = Project("scaerospike", file("."),
     settings = Config.buildSettings ++
-      Seq(libraryDependencies ++=
+      Seq(
+        organization := "com.tapad.scaerospike",
+        libraryDependencies ++=
         Seq(
           "com.aerospike" % "aerospike-client" % "3.0.1",
           "org.scalatest" %% "scalatest" % "1.9.1" % "test"
