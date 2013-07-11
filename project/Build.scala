@@ -1,16 +1,24 @@
+import _root_.sbtassembly.Plugin.AssemblyKeys
 import sbt._
 import Keys._
+import sbtassembly.Plugin._
+import AssemblyKeys._
 import sbtrelease.ReleasePlugin._
 import sbtrelease._
 import ReleaseStateTransformations._
 
 object Scaerospike extends Build {
 
-  lazy val scaerospike: Project = Project("root", file("."),
+  lazy val scaerospike: Project = Project("scaerospike", file("."),
     settings = Config.buildSettings ++
-      Seq(libraryDependencies ++=
+      sbtassembly.Plugin.assemblySettings ++
+      Seq(
+	organization := "com.tapad.scaerospike",
+        mainClass in assembly := Some("com.tapad.aerospike.DataPump"),
+        jarName in assembly := "datapump.jar"
+      ) ++ Seq(libraryDependencies ++=
         Seq(
-          "com.aerospike" % "aerospike-client" % "3.0.0",
+          "com.aerospike" % "aerospike-client" % "3.0.1",
           "org.scalatest" %% "scalatest" % "1.9.1" % "test"
         )
       )
