@@ -9,7 +9,7 @@ import ReleaseStateTransformations._
 
 object Scaerospike extends Build {
 
-  lazy val scaerospike: Project = Project("root", file("."),
+  lazy val scaerospike: Project = Project("scaerospike", file("."),
     settings = Config.buildSettings ++
       sbtassembly.Plugin.assemblySettings ++
       Seq(
