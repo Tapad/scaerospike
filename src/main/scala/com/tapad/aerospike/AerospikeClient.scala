@@ -6,7 +6,6 @@ import scala.concurrent.{Promise, Future}
 import com.aerospike.client.listener.{WriteListener, RecordListener}
 import com.aerospike.client.policy.{WritePolicy, QueryPolicy, Policy}
 
-
 object AerospikeClient {
 
   /**
@@ -22,7 +21,6 @@ object AerospikeClient {
     case Array(host) => new Host(host, 3000)
     case _ => throw new IllegalArgumentException("Invalid host string %s".format(hostString))
   }
-
 }
 
 /**
@@ -34,6 +32,7 @@ object AerospikeClient {
 class AerospikeClient(private val hosts: Seq[Host],
                       private final val settings: ClientSettings) {
 
+  import AerospikeClient._
   private final val policy = settings.buildClientPolicy()
   private final val client = new AsyncClient(policy, hosts: _*)
 
@@ -42,10 +41,9 @@ class AerospikeClient(private val hosts: Seq[Host],
    */
   def namespace[K, V](name: String,
                       readSettings: ReadSettings = ReadSettings.Default,
-                      writeSettings: WriteSettings = WriteSettings.Default): Namespace[K, V] = new Namespace[K, V](this, name, readSettings, writeSettings)
+                      writeSettings: WriteSettings = WriteSettings.Default)(implicit keyKey: KeyGenerator[K]): Namespace[K, V] = new Namespace[K, V](this, name, readSettings, writeSettings)
 
-  private[aerospike] def get[K, V](policy: QueryPolicy, namespace: String, key: K, set: String = "", bin: String = ""): Future[Option[V]] = {
-    val k = new Key(namespace, set, key)
+  private[aerospike] def get[V](policy: QueryPolicy, namespace: String, key: Key, bin: String = ""): Future[Option[V]] = {
     val result = Promise[Option[V]]()
     try {
       client.get(policy, new RecordListener {
@@ -58,15 +56,14 @@ class AerospikeClient(private val hosts: Seq[Host],
           }
           result.success(value)
         }
-      }, k)
+      }, key)
     } catch {
       case e: com.aerospike.client.AerospikeException => result.failure(e)
     }
     result.future
   }
 
-  private[aerospike] def put[K, V](policy: WritePolicy, namespace: String, key: K, value: V, set: String = "", bin: String = ""): Future[Unit] = {
-    val k = new Key(namespace, set, key)
+  private[aerospike] def put[V](policy: WritePolicy, namespace: String, key: Key, value: V, bin: String = ""): Future[Unit] = {
     val b = new Bin(bin, value)
     val result = Promise[Unit]()
     try {
@@ -74,7 +71,7 @@ class AerospikeClient(private val hosts: Seq[Host],
         def onFailure(exception: AerospikeException) { result.failure(exception) }
 
         def onSuccess(key: Key) { result.success(Unit) }
-      }, k, b)
+      }, key, b)
     } catch {
       case e: com.aerospike.client.AerospikeException => result.failure(e)
     }
@@ -96,13 +93,29 @@ class AerospikeClient(private val hosts: Seq[Host],
 class Namespace[K, V](private final val client: AerospikeClient,
                       name: String,
                       readSettings: ReadSettings,
-                      writeSettings: WriteSettings) {
+                      writeSettings: WriteSettings)(implicit keyGen: KeyGenerator[K]) {
   private final val queryPolicy = readSettings.buildQueryPolicy()
   private final val writePolicy = writeSettings.buildWritePolicy()
 
-  def get(key: K, set: String = "", bin: String = ""): Future[Option[V]] = client.get[K, V](queryPolicy, name, key, set = set, bin = bin)
+  def get(key: K, set: String = "", bin: String = ""): Future[Option[V]] = client.get[V](queryPolicy, name, keyGen(name, set, key), bin = bin)
 
-  def put(key: K, value: V, set: String = "", bin: String = ""): Future[Unit] = client.put[K, V](writePolicy, name, key, value, set = set, bin = bin)
+  def put(key: K, value: V, set: String = "", bin: String = ""): Future[Unit] = client.put[V](writePolicy, name, keyGen(name, set, key), value, bin = bin)
+}
+
+/**
+ * The AS client no longer supports AnyRef keys, we need a way to create keys from values.
+ * We define this as a separate case class wrapping the generator function in order to define
+ * the implicit implementations in the companion.
+ */
+case class KeyGenerator[K](gen: (String, String, K) => Key) {
+  final def apply(ns: String, set: String, key: K) : Key = gen(ns, set, key)
+}
+
+object KeyGenerator {
+  implicit val StringKeyGenerator : KeyGenerator[String] = KeyGenerator((ns: String, set: String, key: String) => new Key(ns, set, key))
+  implicit val IntKeyGenerator : KeyGenerator[Int] = KeyGenerator((ns: String, set: String, key: Int) => new Key(ns, set, key))
+  implicit val ByteArrayKeyGenerator : KeyGenerator[Array[Byte]] = KeyGenerator((ns: String, set: String, key: Array[Byte]) => new Key(ns, set, key))
+  implicit val LongKeyGenerator : KeyGenerator[Long] = KeyGenerator((ns: String, set: String, key: Long) => new Key(ns, set, key))
 }
 
 /**
