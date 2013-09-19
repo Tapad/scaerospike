@@ -3,7 +3,7 @@ package com.tapad.aerospike
 import com.aerospike.client.async.{MaxCommandAction, AsyncClientPolicy, AsyncClient}
 import com.aerospike.client._
 import scala.concurrent.{Promise, Future}
-import com.aerospike.client.listener.{WriteListener, RecordListener}
+import com.aerospike.client.listener.{DeleteListener, WriteListener, RecordListener}
 import com.aerospike.client.policy.{WritePolicy, QueryPolicy, Policy}
 
 object AerospikeClient {
@@ -78,6 +78,19 @@ class AerospikeClient(private val hosts: Seq[Host],
     result.future
   }
 
+  private[aerospike] def delete(policy: WritePolicy, namespace: String, key: Key, bin: String = "") : Future[Unit] = {
+    val result = Promise[Unit]()
+    try {
+      client.delete(policy, new DeleteListener {
+        def onFailure(exception: AerospikeException) { result.failure(exception) }
+        def onSuccess(key: Key, existed: Boolean) { result.success(Unit) }
+      }, key)
+    } catch {
+      case e: com.aerospike.client.AerospikeException => result.failure(e)
+    }
+    result.future
+  }
+
 }
 
 /**
@@ -100,6 +113,8 @@ class Namespace[K, V](private final val client: AerospikeClient,
   def get(key: K, set: String = "", bin: String = ""): Future[Option[V]] = client.get[V](queryPolicy, name, keyGen(name, set, key), bin = bin)
 
   def put(key: K, value: V, set: String = "", bin: String = ""): Future[Unit] = client.put[V](writePolicy, name, keyGen(name, set, key), value, bin = bin)
+
+  def delete(key: K, set: String = "", bin: String = "") : Future[Unit] = client.delete(writePolicy, name, keyGen(name, set, key), bin = bin)
 }
 
 /**
