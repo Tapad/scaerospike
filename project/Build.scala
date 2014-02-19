@@ -38,6 +38,7 @@ object Config {
   val buildSettings = Defaults.defaultSettings ++ releaseSettings ++ publishToNexus ++ Seq(
     organization := "com.tapad",
     scalaVersion := "2.10.3",
+    crossScalaVersions := Seq("2.9.3", "2.10.3"),
     resolvers += tapadNexus,
     publishArtifact in(Compile, packageDoc) := false
   )
