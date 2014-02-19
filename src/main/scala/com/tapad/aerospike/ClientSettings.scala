@@ -8,7 +8,7 @@ import com.aerospike.client.policy.{WritePolicy, QueryPolicy}
  *
  * @param maxCommandsOutstanding the maximum number of outstanding commands before rejections will happen
  */
-case class ClientSettings(maxCommandsOutstanding: Int = 500, selectorThreads: Int = 1) {
+case class ClientSettings(maxCommandsOutstanding: Int = 500, selectorThreads: Int = 1, maxSocketIdle : Int = 14) {
 
   /**
    * @return a mutable policy object for the Java client.
@@ -18,6 +18,7 @@ case class ClientSettings(maxCommandsOutstanding: Int = 500, selectorThreads: In
     p.asyncMaxCommandAction = MaxCommandAction.REJECT
     p.asyncMaxCommands      = maxCommandsOutstanding
     p.asyncSelectorThreads  = selectorThreads
+    p.maxSocketIdle         = maxSocketIdle
     p
   }
 }
