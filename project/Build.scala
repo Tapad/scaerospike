@@ -1,8 +1,5 @@
-import _root_.sbtassembly.Plugin.AssemblyKeys
 import sbt._
 import Keys._
-import sbtassembly.Plugin._
-import AssemblyKeys._
 import sbtrelease.ReleasePlugin._
 import sbtrelease._
 import ReleaseStateTransformations._
@@ -40,23 +37,9 @@ object Config {
 
   val buildSettings = Defaults.defaultSettings ++ releaseSettings ++ publishToNexus ++ Seq(
     organization := "com.tapad",
-    scalaVersion := "2.10.2",
+    scalaVersion := "2.10.3",
     resolvers += tapadNexus,
-    publishArtifact in(Compile, packageDoc) := false,
-    ReleaseKeys.nextVersion := {
-      ver => Version(ver).map(_.bumpBugfix.asSnapshot.string).getOrElse(versionFormatError)
-    },
-    ReleaseKeys.releaseProcess := Seq[ReleaseStep](
-      checkSnapshotDependencies,
-      inquireVersions,
-      runTest,
-      setReleaseVersion,
-      commitReleaseVersion, // : ReleaseStep, performs the initial git checks
-      tagRelease,
-      publishArtifacts, // : ReleaseStep, checks whether `publishTo` is properly set up
-      setNextVersion,
-      commitNextVersion
-    )
+    publishArtifact in(Compile, packageDoc) := false
   )
 
 }
