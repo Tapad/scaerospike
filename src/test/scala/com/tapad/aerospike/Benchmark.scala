@@ -19,7 +19,7 @@ object Benchmark {
     val client = AerospikeClient(
       Seq("192.168.0.18"),
       ClientSettings(maxCommandsOutstanding = maxOutstanding)
-    ).namespace[String, Array[Byte]]("devices")
+    ).namespace("devices").defaultSet[String, Array[Byte]]()
 
 
     val key = new AtomicInteger(0)
