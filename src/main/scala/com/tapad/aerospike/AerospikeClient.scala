@@ -2,7 +2,7 @@ package com.tapad.aerospike
 
 import com.aerospike.client.async.{MaxCommandAction, AsyncClientPolicy, AsyncClient}
 import com.aerospike.client._
-import scala.concurrent.{Promise, Future}
+import scala.concurrent.{ExecutionContext, Promise, Future}
 import com.aerospike.client.listener.{RecordArrayListener, DeleteListener, WriteListener, RecordListener}
 import com.aerospike.client.policy.{WritePolicy, QueryPolicy, Policy}
 import scala.collection.JavaConverters._
@@ -15,7 +15,9 @@ object AerospikeClient {
    * @param hosts hosts to sed from
    * @param settings client settings
    */
-  def apply(hosts: Seq[String], settings: ClientSettings = ClientSettings.Default): AerospikeClient = new AerospikeClient(hosts.map(parseHost), settings)
+  def apply(hosts: Seq[String], settings: ClientSettings = ClientSettings.Default)(implicit executionContext: ExecutionContext): AerospikeClient = {
+    new AerospikeClient(hosts.map(parseHost), settings)
+  }
 
   def parseHost(hostString: String) = hostString.split(':') match {
     case Array(host, port) => new Host(host, port.toInt)
@@ -31,7 +33,7 @@ object AerospikeClient {
  * @param settings the settings for this client
  */
 class AerospikeClient(private val hosts: Seq[Host],
-                      private final val settings: ClientSettings) {
+                      private final val settings: ClientSettings)(implicit val executionContext: ExecutionContext) {
 
   import AerospikeClient._
   private final val policy = settings.buildClientPolicy()
@@ -42,7 +44,7 @@ class AerospikeClient(private val hosts: Seq[Host],
    */
   def namespace[K, V](name: String,
                       readSettings: ReadSettings = ReadSettings.Default,
-                      writeSettings: WriteSettings = WriteSettings.Default)(implicit keyKey: KeyGenerator[K]): Namespace[K, V] = new Namespace[K, V](this, name, readSettings, writeSettings)
+                      writeSettings: WriteSettings = WriteSettings.Default)(implicit keyKey: KeyGenerator[K]): Namespace[K, V] = new ClientNamespace[K, V](this, name, readSettings, writeSettings)
 
   private def extractSingleBin[V](bin: String) : Record => Option[V] = {
     case null => None
@@ -50,7 +52,7 @@ class AerospikeClient(private val hosts: Seq[Host],
   }
   private def extractMultiBin[V] : Record => Map[String, V] = {
     case null => Map.empty
-    case rec => rec.bins.asScala.asInstanceOf[Map[String, V]]
+    case rec => rec.bins.asScala.toMap.asInstanceOf[Map[String, V]]
   }
 
   private[aerospike] def query[R](policy: QueryPolicy,
@@ -88,7 +90,7 @@ class AerospikeClient(private val hosts: Seq[Host],
           data += keys(i) -> extract(records(i))
           i += 1
         }
-        data
+        result.success(data)
       }
     }
     try {
@@ -105,10 +107,17 @@ class AerospikeClient(private val hosts: Seq[Host],
     query(policy, namespace, key, bins = Seq(bin), extractSingleBin(bin))
   }
 
+  private[aerospike] def multiGet[V](policy: QueryPolicy, namespace: String, keys: Seq[Key], bin: String = "") : Future[Map[Key, Option[V]]] = {
+    multiQuery(policy, namespace, keys, Seq(bin), extractSingleBin(bin))
+  }
+
+  private[aerospike] def multiGetBins[V](policy: QueryPolicy, namespace: String, keys: Seq[Key], bins: Seq[String]) : Future[Map[Key, Map[String, V]]] = {
+    multiQuery(policy, namespace, keys, bins, extractMultiBin)
+  }
+
   private[aerospike] def getBins[V](policy: QueryPolicy, namespace: String, key: Key, bins: Seq[String]): Future[Map[String, V]] = {
     query(policy, namespace, key, bins = bins, extractMultiBin)
   }
-
 
   private[aerospike] def put[V](policy: WritePolicy, namespace: String, key: Key, value: V, bin: String = ""): Future[Unit] = {
     val b = new Bin(bin, value)
@@ -140,6 +149,7 @@ class AerospikeClient(private val hosts: Seq[Host],
 
 }
 
+
 /**
  * Represents a namespace tied to a specific client. This is the main entry-point for most
  * client operations.
@@ -150,17 +160,34 @@ class AerospikeClient(private val hosts: Seq[Host],
  * @tparam K the key type for this namespace
  * @tparam V the value type for this namespace
  */
-class Namespace[K, V](private final val client: AerospikeClient,
+class ClientNamespace[K, V](private final val client: AerospikeClient,
                       name: String,
                       readSettings: ReadSettings,
-                      writeSettings: WriteSettings)(implicit keyGen: KeyGenerator[K]) {
+                      writeSettings: WriteSettings)(implicit keyGen: KeyGenerator[K], executionContext: ExecutionContext) extends Namespace[K, V] {
   private final val queryPolicy = readSettings.buildQueryPolicy()
   private final val writePolicy = writeSettings.buildWritePolicy()
 
-  def get(key: K, set: String = "", bin: String = ""): Future[Option[V]] = client.get[V](queryPolicy, name, keyGen(name, set, key), bin = bin)
-  def getBins(key: K, set: String = "", bins: Seq[String]) : Future[Map[String, V]] = client.getBins[V](queryPolicy, name, keyGen(name, set, key), bins = bins)
+  def get(key: K, set: String = "", bin: String = ""): Future[Option[V]] = {
+    client.get[V](queryPolicy, name, keyGen(name, set, key), bin = bin)
+  }
+  def getBins(key: K, set: String = "", bins: Seq[String]) : Future[Map[String, V]] = {
+    client.getBins[V](queryPolicy, name, keyGen(name, set, key), bins = bins)
+  }
 
-  def put(key: K, value: V, set: String = "", bin: String = "", customTtl: Option[Int]): Future[Unit] = {
+  def multiGet(keys: Seq[K], set: String = "", bin: String = ""): Future[Map[K, Option[V]]] = {
+    client.multiGet[V](queryPolicy, name, keys.map(keyGen(name, set, _)), bin = bin).map { result =>
+      result.map { case (key, value) => key.userKey.asInstanceOf[K] -> value }
+    }
+  }
+
+  def multiGetBins(keys: Seq[K], set: String = "", bins: Seq[String]): Future[Map[K, Map[String, V]]] = {
+    client.multiGetBins[V](queryPolicy, name, keys.map(keyGen(name, set, _)), bins = bins).map { result =>
+      result.map { case (key, value) => key.userKey.asInstanceOf[K] -> value }
+    }
+  }
+
+
+  def put(key: K, value: V, set: String = "", bin: String = "", customTtl: Option[Int] = None): Future[Unit] = {
     val policy = customTtl match {
       case None => writePolicy
       case Some(ttl) => 
@@ -172,75 +199,5 @@ class Namespace[K, V](private final val client: AerospikeClient,
   } 
 
   def delete(key: K, set: String = "", bin: String = "") : Future[Unit] = client.delete(writePolicy, name, keyGen(name, set, key), bin = bin)
-}
-
-/**
- * The AS client no longer supports AnyRef keys, we need a way to create keys from values.
- * We define this as a separate case class wrapping the generator function in order to define
- * the implicit implementations in the companion.
- */
-case class KeyGenerator[K](gen: (String, String, K) => Key) {
-  final def apply(ns: String, set: String, key: K) : Key = gen(ns, set, key)
-}
-
-object KeyGenerator {
-  implicit val StringKeyGenerator : KeyGenerator[String] = KeyGenerator((ns: String, set: String, key: String) => new Key(ns, set, key))
-  implicit val IntKeyGenerator : KeyGenerator[Int] = KeyGenerator((ns: String, set: String, key: Int) => new Key(ns, set, key))
-  implicit val ByteArrayKeyGenerator : KeyGenerator[Array[Byte]] = KeyGenerator((ns: String, set: String, key: Array[Byte]) => new Key(ns, set, key))
-  implicit val LongKeyGenerator : KeyGenerator[Long] = KeyGenerator((ns: String, set: String, key: Long) => new Key(ns, set, key))
-}
-
-/**
- * Aerospike client settings.
- *
- * @param maxCommandsOutstanding the maximum number of outstanding commands before rejections will happen
- */
-case class ClientSettings(maxCommandsOutstanding: Int = 500, selectorThreads: Int = 1) {
-
-  /**
-   * @return a mutable policy object for the Java client.
-   */
-  private[aerospike] def buildClientPolicy() = {
-    val p = new AsyncClientPolicy()
-    p.asyncMaxCommandAction = MaxCommandAction.REJECT
-    p.asyncMaxCommands      = maxCommandsOutstanding
-    p.asyncSelectorThreads  = selectorThreads
-    p
-  }
-}
-
-object ClientSettings {
-  val Default = ClientSettings()
-}
-
-
-case class ReadSettings(timeout: Int = 0, maxRetries: Int = 2, sleepBetweenRetries: Int = 500, maxConcurrentNodes: Int = 0) {
-  private[aerospike] def buildQueryPolicy() = {
-    val p = new QueryPolicy()
-    p.timeout             = timeout
-    p.maxRetries          = maxRetries
-    p.sleepBetweenRetries = sleepBetweenRetries
-    p.maxConcurrentNodes  = maxConcurrentNodes
-    p
-  }
-}
-
-object ReadSettings {
-  val Default = ReadSettings()
-}
-
-case class WriteSettings(expiration: Int = 0, timeout: Int = 0, maxRetries: Int = 2, sleepBetweenRetries: Int = 500) {
-  private[aerospike] def buildWritePolicy() = {
-    val p = new WritePolicy()
-    p.expiration = expiration
-    p.timeout = timeout
-    p.maxRetries = maxRetries
-    p.sleepBetweenRetries = sleepBetweenRetries
-    p
-  }
-}
-
-object WriteSettings {
-  val Default = WriteSettings()
 }
 
