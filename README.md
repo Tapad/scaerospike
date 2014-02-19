@@ -12,9 +12,9 @@ API.
     import scala.util.{Failure, Success}
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    val client = AerospikeClient(Seq("192.168.0.18"))
+    val client = AerospikeClient(Seq("192.168.210.129"))
 
-    val devices = client.namespace[String, String]("devices")
+    val devices = client.namespace("devices").set[String, String]("setName")
 
     val write : Future[Unit] 	          = devices.put("deviceA", "foo")
     val read  : Future[Option[String]]    = devices.get("deviceA")
