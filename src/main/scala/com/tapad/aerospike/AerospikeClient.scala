@@ -45,7 +45,7 @@ class AerospikeClient(private val hosts: Seq[Host],
    */
   def namespace(name: String,
                 readSettings: ReadSettings = ReadSettings.Default,
-                writeSettings: WriteSettings = WriteSettings.Default): Namespace = new Namespace(this, name, readSettings, writeSettings)
+                writeSettings: WriteSettings = WriteSettings.Default): AsNamespace = new AsNamespace(this, name, readSettings, writeSettings)
 
   private def extractSingleBin[V](bin: String): Record => Option[V] = {
     case null => None
@@ -149,77 +149,5 @@ class AerospikeClient(private val hosts: Seq[Host],
     result.future
   }
 
-}
-
-
-/**
- * Represents a namespace tied to a specific client.
- *
- * @param client the client to use
- * @param name the name of the namespace
- * @param readSettings settings for reads
- * @param writeSettings settings for writes
- */
-class Namespace(private final val client: AerospikeClient,
-                name: String,
-                readSettings: ReadSettings,
-                writeSettings: WriteSettings) {
-
-  def set[K, V](setName: String,
-                readSettings: ReadSettings = readSettings,
-                writeSettings: WriteSettings = writeSettings)
-               (implicit keyGen: KeyGenerator[K], executionContext: ExecutionContext): AerospikeSet[K, V] =
-    new ClientAerospikeSet[K, V](client, name, setName, readSettings, writeSettings)
-
-  def defaultSet[K, V](implicit keyGen: KeyGenerator[K], executionContext: ExecutionContext): AerospikeSet[K, V] =
-    new ClientAerospikeSet[K, V](client, name, "", readSettings, writeSettings)
-}
-
-/**
- * Represents a set in a namespace tied to a specific client.
- */
-private[aerospike] class ClientAerospikeSet[K, V](private final val client: AerospikeClient,
-                                         namespace: String,
-                                         set: String,
-                                         readSettings: ReadSettings,
-                                         writeSettings: WriteSettings)
-                                        (implicit keyGen: KeyGenerator[K], executionContext: ExecutionContext) extends AerospikeSet[K, V] {
-
-  private final val queryPolicy = readSettings.buildQueryPolicy()
-  private final val writePolicy = writeSettings.buildWritePolicy()
-
-  def get(key: K, bin: String = ""): Future[Option[V]] = {
-    client.get[V](queryPolicy, keyGen(namespace, set, key), bin = bin)
-  }
-
-  def getBins(key: K, bins: Seq[String]): Future[Map[String, V]] = {
-    client.getBins[V](queryPolicy, keyGen(namespace, set, key), bins = bins)
-  }
-
-  def multiGet(keys: Seq[K], bin: String = ""): Future[Map[K, Option[V]]] = {
-    client.multiGet[V](queryPolicy, keys.map(keyGen(namespace, set, _)), bin = bin).map { result =>
-      result.map { case (key, value) => key.userKey.asInstanceOf[K] -> value}
-    }
-  }
-
-  def multiGetBins(keys: Seq[K], bins: Seq[String]): Future[Map[K, Map[String, V]]] = {
-    client.multiGetBins[V](queryPolicy, keys.map(keyGen(namespace, set, _)), bins = bins).map { result =>
-      result.map { case (key, value) => key.userKey.asInstanceOf[K] -> value}
-    }
-  }
-
-
-  def put(key: K, value: V, bin: String = "", customTtl: Option[Int] = None): Future[Unit] = {
-    val policy = customTtl match {
-      case None => writePolicy
-      case Some(ttl) =>
-        val p = writeSettings.buildWritePolicy()
-        p.expiration = ttl
-        p
-    }
-    client.put[V](policy, keyGen(namespace, set, key), value, bin = bin)
-  }
-
-  def delete(key: K, bin: String = ""): Future[Unit] = client.delete(writePolicy, keyGen(namespace, set, key), bin = bin)
 }
 
