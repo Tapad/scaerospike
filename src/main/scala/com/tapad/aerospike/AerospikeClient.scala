@@ -16,7 +16,9 @@ object AerospikeClient {
    * @param settings client settings
    */
   def apply(hosts: Seq[String], settings: ClientSettings = ClientSettings.Default)(implicit executionContext: ExecutionContext): AerospikeClient = {
-    new AerospikeClient(hosts.map(parseHost), settings)
+    val policy = settings.buildClientPolicy()
+    val underlying = new AsyncClient(policy, hosts.map(parseHost): _*)
+    new AerospikeClient(underlying)
   }
 
   def parseHost(hostString: String) = hostString.split(':') match {
@@ -28,17 +30,8 @@ object AerospikeClient {
 
 /**
  * Wraps the Java client and exposes methods to build clients for individual namespaces.
- *
- * @param hosts the servers hosts
- * @param settings the settings for this client
  */
-class AerospikeClient(private val hosts: Seq[Host],
-                      private final val settings: ClientSettings) {
-
-  import AerospikeClient._
-
-  private final val policy = settings.buildClientPolicy()
-  private final val client = new AsyncClient(policy, hosts: _*)
+class AerospikeClient(private final val underlying: AsyncClient) {
 
   /**
    * Creates a new namespace client for this client.
@@ -67,8 +60,8 @@ class AerospikeClient(private val hosts: Seq[Host],
       def onSuccess(key: Key, record: Record): Unit = result.success(extract(record))
     }
     try {
-      if (bins.isEmpty) client.get(policy, listener, key)
-      else client.get(policy, listener, key, bins: _*)
+      if (bins.isEmpty) underlying.get(policy, listener, key)
+      else underlying.get(policy, listener, key, bins: _*)
     } catch {
       case e: com.aerospike.client.AerospikeException => result.failure(e)
     }
@@ -95,8 +88,8 @@ class AerospikeClient(private val hosts: Seq[Host],
       }
     }
     try {
-      if (bins.isEmpty) client.get(policy, listener, keys.toArray)
-      else client.get(policy, listener, keys.toArray, bins: _*)
+      if (bins.isEmpty) underlying.get(policy, listener, keys.toArray)
+      else underlying.get(policy, listener, keys.toArray, bins: _*)
     } catch {
       case e: com.aerospike.client.AerospikeException => result.failure(e)
     }
@@ -124,7 +117,7 @@ class AerospikeClient(private val hosts: Seq[Host],
     val b = new Bin(bin, value)
     val result = Promise[Unit]()
     try {
-      client.put(policy, new WriteListener {
+      underlying.put(policy, new WriteListener {
         def onFailure(exception: AerospikeException) { result.failure(exception) }
 
         def onSuccess(key: Key) { result.success(Unit) }
@@ -138,7 +131,7 @@ class AerospikeClient(private val hosts: Seq[Host],
   private[aerospike] def delete(policy: WritePolicy, key: Key, bin: String = ""): Future[Unit] = {
     val result = Promise[Unit]()
     try {
-      client.delete(policy, new DeleteListener {
+      underlying.delete(policy, new DeleteListener {
         def onFailure(exception: AerospikeException) { result.failure(exception) }
 
         def onSuccess(key: Key, existed: Boolean) { result.success(Unit) }
