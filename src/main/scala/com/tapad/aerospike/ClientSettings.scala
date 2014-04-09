@@ -2,13 +2,14 @@ package com.tapad.aerospike
 
 import com.aerospike.client.async.{MaxCommandAction, AsyncClientPolicy}
 import com.aerospike.client.policy.{WritePolicy, QueryPolicy}
+import java.util.concurrent.ExecutorService
 
 /**
  * Aerospike client settings.
  *
  * @param maxCommandsOutstanding the maximum number of outstanding commands before rejections will happen
  */
-case class ClientSettings(maxCommandsOutstanding: Int = 500, selectorThreads: Int = 1, maxSocketIdle : Int = 14) {
+case class ClientSettings(maxCommandsOutstanding: Int = 500, selectorThreads: Int = 1, maxSocketIdle : Int = 14, taskThreadPool: ExecutorService = null) {
 
   /**
    * @return a mutable policy object for the Java client.
@@ -19,6 +20,7 @@ case class ClientSettings(maxCommandsOutstanding: Int = 500, selectorThreads: In
     p.asyncMaxCommands      = maxCommandsOutstanding
     p.asyncSelectorThreads  = selectorThreads
     p.maxSocketIdle         = maxSocketIdle
+    p.asyncTaskThreadPool   = taskThreadPool
     p
   }
 }
