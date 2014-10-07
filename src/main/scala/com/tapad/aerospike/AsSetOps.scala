@@ -1,7 +1,11 @@
 package com.tapad.aerospike
 
+import com.aerospike.client.Value.ByteSegmentValue
+import com.aerospike.client.policy.WritePolicy
+import io.netty.buffer.ByteBuf
+
 import scala.concurrent.{ExecutionContext, Future}
-import com.aerospike.client.Key
+import com.aerospike.client.{Bin, Key}
 
 /**
  * Operations on an Aerospike set in a namespace.
@@ -34,6 +38,12 @@ trait AsSetOps[K, V] {
    * Put a value into a key.
    */
   def put(key: K, value: V, bin: String = "", customTtl: Option[Int] = None): Future[Unit]
+
+
+  /**
+   * Optimized version of put avoiding copying of the data in the ByteBuf
+   */
+  def putByteBuf(key: K, value: ByteBuf, bin: String = "", customTtl: Option[Int] = None): Future[Unit]
 
   /**
    * Delete a key.
@@ -74,16 +84,24 @@ private[aerospike] class AsSet[K, V](private final val client: AerospikeClient,
     }
   }
 
+  private def getPolicy(customTtl: Option[Int]): WritePolicy = customTtl match {
+    case None => writePolicy
+    case Some(ttl) =>
+      val p = writeSettings.buildWritePolicy()
+      p.expiration = ttl
+      p
+  }
 
   def put(key: K, value: V, bin: String = "", customTtl: Option[Int] = None): Future[Unit] = {
-    val policy = customTtl match {
-      case None => writePolicy
-      case Some(ttl) =>
-        val p = writeSettings.buildWritePolicy()
-        p.expiration = ttl
-        p
-    }
-    client.put[V](policy, keyGen(namespace, set, key), value, bin = bin)
+    val policy = getPolicy(customTtl)
+    val b = new Bin(bin, value)
+    client.put[V](policy, keyGen(namespace, set, key), bin = b)
+  }
+
+  def putByteBuf(key: K, value: ByteBuf, bin: String = "", customTtl: Option[Int] = None): Future[Unit] = {
+    val policy = getPolicy(customTtl)
+    val b = new Bin(bin, new ByteSegmentValue(value.array(), value.arrayOffset() + value.readerIndex(), value.readableBytes()))
+    client.put(policy, keyGen(namespace, set, key), bin = b)
   }
 
   def delete(key: K, bin: String = ""): Future[Unit] = client.delete(writePolicy, keyGen(namespace, set, key), bin = bin)

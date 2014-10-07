@@ -113,15 +113,14 @@ class AerospikeClient(private final val underlying: AsyncClient) {
     query(policy, key, bins = bins, extractMultiBin)
   }
 
-  private[aerospike] def put[V](policy: WritePolicy, key: Key, value: V, bin: String = ""): Future[Unit] = {
-    val b = new Bin(bin, value)
+  private[aerospike] def put[V](policy: WritePolicy, key: Key, bin: Bin): Future[Unit] = {
     val result = Promise[Unit]()
     try {
       underlying.put(policy, new WriteListener {
         def onFailure(exception: AerospikeException) { result.failure(exception) }
 
         def onSuccess(key: Key) { result.success(Unit) }
-      }, key, b)
+      }, key, bin)
     } catch {
       case e: com.aerospike.client.AerospikeException => result.failure(e)
     }
