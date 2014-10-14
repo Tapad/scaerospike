@@ -36,6 +36,11 @@ trait AsSetOps[K, V] {
   def put(key: K, value: V, bin: String = "", customTtl: Option[Int] = None): Future[Unit]
 
   /**
+   * Put values into multiple bins for a key.
+   */
+  def putBins(key: K, values: Map[String, V], customTtl: Option[Int] = None) : Future[Unit]
+
+    /**
    * Delete a key.
    */
   def delete(key: K, bin: String = "") : Future[Unit]
@@ -74,8 +79,11 @@ private[aerospike] class AsSet[K, V](private final val client: AerospikeClient,
     }
   }
 
-
   def put(key: K, value: V, bin: String = "", customTtl: Option[Int] = None): Future[Unit] = {
+    putBins(key, Map(bin -> value), customTtl)
+  }
+
+  def putBins(key: K, values: Map[String, V], customTtl: Option[Int] = None) : Future[Unit] = {
     val policy = customTtl match {
       case None => writePolicy
       case Some(ttl) =>
@@ -83,7 +91,7 @@ private[aerospike] class AsSet[K, V](private final val client: AerospikeClient,
         p.expiration = ttl
         p
     }
-    client.put[V](policy, keyGen(namespace, set, key), value, bin = bin)
+    client.put[V](policy, keyGen(namespace, set, key), values)
   }
 
   def delete(key: K, bin: String = ""): Future[Unit] = client.delete(writePolicy, keyGen(namespace, set, key), bin = bin)

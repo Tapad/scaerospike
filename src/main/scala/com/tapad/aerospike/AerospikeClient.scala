@@ -6,6 +6,7 @@ import scala.concurrent.{ExecutionContext, Promise, Future}
 import com.aerospike.client.listener.{RecordArrayListener, DeleteListener, WriteListener, RecordListener}
 import com.aerospike.client.policy.{WritePolicy, QueryPolicy, Policy}
 import scala.collection.JavaConverters._
+import scala.collection.breakOut
 
 object AerospikeClient {
 
@@ -113,15 +114,15 @@ class AerospikeClient(private final val underlying: AsyncClient) {
     query(policy, key, bins = bins, extractMultiBin)
   }
 
-  private[aerospike] def put[V](policy: WritePolicy, key: Key, value: V, bin: String = ""): Future[Unit] = {
-    val b = new Bin(bin, value)
+  private[aerospike] def put[V](policy: WritePolicy, key: Key, values: Map[String, V]): Future[Unit] = {
+    val bins: Array[Bin] = values.map { case (binName, binValue) => new Bin(binName, binValue) }(breakOut)
     val result = Promise[Unit]()
     try {
       underlying.put(policy, new WriteListener {
         def onFailure(exception: AerospikeException) { result.failure(exception) }
 
         def onSuccess(key: Key) { result.success(Unit) }
-      }, key, b)
+      }, key, bins: _*)
     } catch {
       case e: com.aerospike.client.AerospikeException => result.failure(e)
     }
