@@ -16,11 +16,11 @@ trait ValueMapping[T] {
 }
 
 object DefaultValueMappings {
-  val byteArrayMapping = new ValueMapping[Array[Byte]] {
+  implicit val byteArrayMapping = new ValueMapping[Array[Byte]] {
     def toAerospikeValue(arr: Array[Byte]) = new BytesValue(arr)
     def fromStoredObject(v: Object): Array[Byte] = v.asInstanceOf[Array[Byte]]
   }
-  val byteBufMapping = new ValueMapping[ByteBuf] {
+  implicit val byteBufMapping = new ValueMapping[ByteBuf] {
     def toAerospikeValue(buf: ByteBuf) = new ByteSegmentValue(buf.array, buf.arrayOffset + buf.readerIndex, buf.readableBytes)
     def fromStoredObject(v: Object): ByteBuf = Unpooled.wrappedBuffer(v.asInstanceOf[Array[Byte]])
   }
