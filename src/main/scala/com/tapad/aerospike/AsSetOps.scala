@@ -109,9 +109,9 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
   }
 
   private[aerospike] def multiQuery[T](policy: QueryPolicy,
-                                    keys: Seq[Key],
-                                    bins: Seq[String],
-                                    extract: Record => T): Future[Map[K, T]] = {
+                                       keys: Seq[Key],
+                                       bins: Seq[String],
+                                       extract: Record => T): Future[Map[K, T]] = {
     val result = Promise[Map[K, T]]()
     val listener = new RecordArrayListener {
       def onFailure(exception: AerospikeException): Unit = result.failure(exception)
@@ -121,7 +121,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
         val size = keys.length
         var data = Map.newBuilder[K, T]
         while (i < size) {
-          data += keys(i).userKey.asInstanceOf[K] -> extract(records(i))
+          data += keys(i).userKey.getObject.asInstanceOf[K] -> extract(records(i))
           i += 1
         }
         result.success(data.result())
