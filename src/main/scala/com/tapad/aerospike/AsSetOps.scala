@@ -25,7 +25,7 @@ trait AsSetOps[K, V] {
   /**
    * Gets multiple bins for a single key.
    */
-  def getBins(key: K, bins: Seq[String]) : Future[Map[String, Option[V]]]
+  def getBins(key: K, bins: Seq[String]) : Future[Map[String, V]]
 
   /**
    * Gets the default bin for multiple keys.
@@ -35,7 +35,7 @@ trait AsSetOps[K, V] {
   /**
    * Gets multiple bins for a single key.
    */
-  def multiGetBins(keys: Seq[K], bins: Seq[String]): Future[Map[K, Map[String, Option[V]]]]
+  def multiGetBins(keys: Seq[K], bins: Seq[String]): Future[Map[K, Map[String, V]]]
 
   /**
    * Put a value into a key.
@@ -73,18 +73,15 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
     case rec => Option(valueMapping.fromStoredObject(rec.getValue(bin)))
   }
 
-  private def extractMultiBin(record: Record): Map[String, Option[V]] = record match {
+  private def extractMultiBin(record: Record): Map[String, V] = record match {
     case null => Map.empty
     case rec => {
-      val result = Map.newBuilder[String, Option[V]]
+      val result = Map.newBuilder[String, V]
       val iter = rec.bins.entrySet().iterator()
       while (iter.hasNext) {
         val bin = iter.next()
         val obj = bin.getValue
-        val v =
-          if (obj != null) Some(valueMapping.fromStoredObject(obj))
-          else None
-        result += bin.getKey -> v
+        if (obj != null) result += bin.getKey -> valueMapping.fromStoredObject(obj)
       }
       result.result()
     }
@@ -140,7 +137,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
     query(queryPolicy, genKey(key), bins = Seq(bin), extractSingleBin(bin, _))
   }
 
-  def getBins(key: K, bins: Seq[String]): Future[Map[String, Option[V]]] = {
+  def getBins(key: K, bins: Seq[String]): Future[Map[String, V]] = {
     query(queryPolicy, genKey(key), bins = bins, extractMultiBin)
   }
 
@@ -148,7 +145,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
     multiQuery(queryPolicy, keys.map(genKey), bins = Seq(bin), extractSingleBin(bin, _))
   }
 
-  def multiGetBins(keys: Seq[K], bins: Seq[String]): Future[Map[K, Map[String, Option[V]]]] = {
+  def multiGetBins(keys: Seq[K], bins: Seq[String]): Future[Map[K, Map[String, V]]] = {
     multiQuery(queryPolicy, keys.map(genKey), bins, extractMultiBin)
   }
 

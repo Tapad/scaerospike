@@ -21,7 +21,13 @@ object DefaultValueMappings {
     def fromStoredObject(v: Object): Array[Byte] = v.asInstanceOf[Array[Byte]]
   }
   implicit val byteBufMapping = new ValueMapping[ByteBuf] {
-    def toAerospikeValue(buf: ByteBuf) = new ByteSegmentValue(buf.array, buf.arrayOffset + buf.readerIndex, buf.readableBytes)
+    def toAerospikeValue(buf: ByteBuf) =
+      if (buf.hasArray) new ByteSegmentValue(buf.array, buf.arrayOffset + buf.readerIndex, buf.readableBytes)
+      else {
+        val arr = new Array[Byte](buf.readableBytes)
+        buf.readBytes(arr)
+        new BytesValue(arr)
+      }
     def fromStoredObject(v: Object): ByteBuf = Unpooled.wrappedBuffer(v.asInstanceOf[Array[Byte]])
   }
 }
