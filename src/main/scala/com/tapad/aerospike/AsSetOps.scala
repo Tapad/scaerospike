@@ -161,7 +161,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
         p.expiration = ttl
         p
     }
-    val bins: Array[Bin] = values.map { case (binName, binValue) => new Bin(binName, binValue) }(breakOut)
+    val bins: Array[Bin] = values.map { case (binName, binValue) => new Bin(binName, valueMapping.toAerospikeValue(binValue)) }(breakOut)
     val result = Promise[Unit]()
     try {
       val listener = new WriteListener {
