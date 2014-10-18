@@ -1,18 +1,17 @@
 package com.tapad.aerospike
 
-import scala.concurrent.Await
-import com.aerospike.client.Log
+import com.aerospike.client.{Value, Log}
 import com.aerospike.client.Log.{Level, Callback}
 
 
 object AerospikeClientSpec {
   def main(args: Array[String]) {
 
+    implicit val mapping = new ValueMapping[String] {
+      def toAerospikeValue(s: String): Value = Value.get(s)
+      def fromStoredObject(obj: Object): String = obj.asInstanceOf[String]
+    }
 
-    import com.tapad.aerospike._
-    import scala.concurrent.Future
-    import scala.concurrent.duration._
-    import scala.util.{Failure, Success}
     import scala.concurrent.ExecutionContext.Implicits.global
 
     com.aerospike.client.Log.setLevel(Log.Level.DEBUG)
