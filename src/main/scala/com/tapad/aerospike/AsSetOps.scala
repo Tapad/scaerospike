@@ -100,7 +100,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
       if (bins.isEmpty) client.get(policy, listener, key)
       else client.get(policy, listener, key, bins: _*)
     } catch {
-      case e: Throwable => result.failure(e)
+      case e: Exception => result.failure(e)
     }
     result.future
   }
@@ -128,7 +128,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
       if (bins.isEmpty) client.get(policy, listener, keys.toArray)
       else client.get(policy, listener, keys.toArray, bins: _*)
     } catch {
-      case e: Throwable => result.failure(e)
+      case e: Exception => result.failure(e)
     }
     result.future
   }
@@ -171,7 +171,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
       }
       client.put(policy, listener, genKey(key), bins: _*)
     } catch {
-      case e: com.aerospike.client.AerospikeException => result.failure(e)
+      case e: Exception => result.failure(e)
     }
     result.future
   }
@@ -190,7 +190,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
       }
       client.delete(writePolicy, listener, genKey(key))
     } catch {
-      case e: com.aerospike.client.AerospikeException => result.failure(e)
+      case e: Exception => result.failure(e)
     }
     result.future
   }
