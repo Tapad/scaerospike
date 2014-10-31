@@ -1,3 +1,5 @@
+[![Build Status](https://api.travis-ci.org/Tapad/scaerospike.png?branch=master)](https://travis-ci.org/Tapad/scaerospike)
+
 ## Intro
 
 Scaerospike is a Scala wrapper around the Aerospike 3.x series asynchronous Java client. It uses the Scala 2.10 Futures
