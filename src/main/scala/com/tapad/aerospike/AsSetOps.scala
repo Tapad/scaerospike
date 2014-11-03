@@ -116,7 +116,7 @@ private[aerospike] class AsSet[K, V](private final val client: AsyncClient,
       def onSuccess(keys: Array[Key], records: Array[Record]): Unit = {
         var i = 0
         val size = keys.length
-        var data = Map.newBuilder[K, T]
+        val data = Map.newBuilder[K, T]
         while (i < size) {
           data += keys(i).userKey.getObject.asInstanceOf[K] -> extract(records(i))
           i += 1
