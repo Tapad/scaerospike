@@ -2,7 +2,9 @@ import sbt._
 import Keys._
 import sbtrelease.ReleasePlugin._
 import sbtrelease._
+import sbtrelease.ReleasePlugin.autoImport._
 import ReleaseStateTransformations._
+
 
 object Scaerospike extends Build {
 
@@ -14,7 +16,7 @@ object Scaerospike extends Build {
         Seq(
           "com.aerospike" % "aerospike-client" % "3.0.30",
           "io.netty" % "netty-buffer" % "4.0.23.Final",
-          "org.scalatest" %% "scalatest" % (if (scalaVersion.value.startsWith("2.9.")) "1.9.2" else "2.2.0") % "test"
+          "org.scalatest" %% "scalatest" % "2.2.6"  % "test"
         )
       )
   )
@@ -36,10 +38,11 @@ object Config {
     pomIncludeRepository := { _ => false }
   )
 
-  val buildSettings = Defaults.defaultSettings ++ releaseSettings ++ publishToNexus ++ Seq(
+  val buildSettings = Defaults.defaultSettings ++ publishToNexus ++ Seq(
     organization := "com.tapad",
-    scalaVersion := "2.10.4",
-    crossScalaVersions := Seq("2.9.3", "2.10.4", "2.11.1"),
+    scalaVersion := "2.10.6",
+    crossScalaVersions := Seq("2.10.6", "2.11.8"),
+    releaseCrossBuild := true,
     resolvers += tapadNexus,
     publishArtifact in(Compile, packageDoc) := false
   )
